@@ -1,8 +1,9 @@
-1. Extract the population that has not received intervention and calculate the transition probability matrix
-2. Calculate the survival function of each path
-3. Calculate the survival function of the intervention group
-4. Calculate the transition probability matrix of the intervention group
-5. Generate data
+#######2.Generate transition chain data 
+#1. Extract the population that has not received intervention and calculate the transition probability matrix
+#2. Calculate the survival function of each path
+#3. Calculate the survival function of the intervention group
+#4. Calculate the transition probability matrix of the intervention group
+#5. Generate data
 
 dat_flw<-read.csv("~/Desktop/AIDS/AIDS-2024/dat_flw.csv")
 dat_flw<-dat_flw[,-c(1:2)]
@@ -22,76 +23,76 @@ data<-dat_flw_x0
 num<-dim(data)[1]
 k0<-dim(data)[2]
 C_1<-foreach(i = 1:num,
-               .combine = rbind,
+             .combine = rbind,
              .packages = c("dplyr"),
-               .errorhandling = "pass") %dopar% {
-                 c<-c(rep(0, 4))
-                 Time<-c(rep(1, k0))
-                 s<-c(rep(0, k0))
-                 d<-as.numeric(data[i,])
-                 sit<-min(which(is.na(d)==FALSE))#if have NA
-for(t in sit:(k0-1)){
-  Time[t+1]<-ifelse(d[t]==d[t+1],Time[t]+1,1)
-  if ((d[t]==1)&(d[t+1]==2)) {s[t]<-1}
-  else if ((d[t]==2)&(d[t+1]==1)) {s[t]<-2}
-  else if ((d[t]==1)&(d[t+1]==3)) {s[t]<-3} 
-  else if ((d[t]==2)&(d[t+1]==3)) {s[t]<-4}
-  else s[t]<-0
-  }
-  Time<-Time[sit:k0]
-  s<-s[sit:k0]
-if (any(s!= 0)==TRUE) {#transfer has occurred
-  for(l in 1:(sum(s!= 0))){#sum(s! = 0) denote the number of transitions occurred
-    ci<-c(ID=i,y=Time[which(s!= 0)][l],m=s[which(s!= 0)][l],sigema=1)
-    ci<-as.data.frame(t(ci))
-    colnames(ci)<-c("ID","y","m","sigema")
-    c<-rbind(c,ci)
-  }
-
-    if(last(Time)>1){# No transfer occurred at the last point in time
-    if(last(d)==1|last(d)==2){## The last status is not dead, indicating that there is censoring data
-   ci2<-c(ID=i,y=last(Time)-1,m=last(d),sigema=0)
-   ci3<-c(ID=i,y=last(Time)-1,m=last(d)+2,sigema=0)
-   #m=1 in the last time correspond the censoring data of m=1/m=3;
-   #m=2 in the last time correspond the censoring data of m=2/m=4
-   ci2<-as.data.frame(t(ci2))
-   ci3<-as.data.frame(t(ci3))
-    colnames(ci2)<-c("ID","y","m","sigema")
-    colnames(ci3)<-c("ID","y","m","sigema")
-    c<-rbind(c,ci2,ci3)
-  }
-    }
-     }#If last(time) is greater than 1 and is not in state 3, then the survival time of the individual in state 1/2 is the censoring data and the survival time is last(time)-1
- if (any(s!= 0)==FALSE) {
-  ci1<-c(ID=i,y=last(Time)-1,m=last(d),sigema=0)
-  ci2<-c(ID=i,y=last(Time)-1,m=last(d)+2,sigema=0)
-  ci1<-as.data.frame(t(ci1))
-  ci2<-as.data.frame(t(ci2))
-    colnames(ci1)<-c("ID","y","m","sigema")
-    colnames(ci2)<-c("ID","y","m","sigema")
-    c<-as.data.frame(rbind(c,ci1,ci2))
- }
-#pfs/pd-d
-   if(last(d)==1|last(d)==2){
-    ci3<-c(ID=i,y=K-sit,m=5,sigema=0) 
-     ci3<-as.data.frame(t(ci3))
-    colnames(ci3)<-c("ID","y","m","sigema")
-    c<-as.data.frame(rbind(c,ci3))  
-   }
-  if(last(d)==3){ 
-   if(d[sit]==1|d[sit]==2){
-ci3<-c(ID=i,y=min(which(d==3))-sit,m=5,sigema=1)
-ci3<-as.data.frame(t(ci3))
-    colnames(ci3)<-c("ID","y","m","sigema")
-    c<-as.data.frame(rbind(c,ci3))  
-   }
-   if(d[sit]==3){ 
-   c<-c
-   }
-  }
-  c<-c[-1,]
-                 return(c)
+             .errorhandling = "pass") %dopar% {
+               c<-c(rep(0, 4))
+               Time<-c(rep(1, k0))
+               s<-c(rep(0, k0))
+               d<-as.numeric(data[i,])
+               sit<-min(which(is.na(d)==FALSE))#if have NA
+               for(t in sit:(k0-1)){
+                 Time[t+1]<-ifelse(d[t]==d[t+1],Time[t]+1,1)
+                 if ((d[t]==1)&(d[t+1]==2)) {s[t]<-1}
+                 else if ((d[t]==2)&(d[t+1]==1)) {s[t]<-2}
+                 else if ((d[t]==1)&(d[t+1]==3)) {s[t]<-3} 
+                 else if ((d[t]==2)&(d[t+1]==3)) {s[t]<-4}
+                 else s[t]<-0
                }
+               Time<-Time[sit:k0]
+               s<-s[sit:k0]
+               if (any(s!= 0)==TRUE) {#transfer has occurred
+                 for(l in 1:(sum(s!= 0))){#sum(s! = 0) denote the number of transitions occurred
+                   ci<-c(ID=i,y=Time[which(s!= 0)][l],m=s[which(s!= 0)][l],sigema=1)
+                   ci<-as.data.frame(t(ci))
+                   colnames(ci)<-c("ID","y","m","sigema")
+                   c<-rbind(c,ci)
+                 }
+                 
+                 if(last(Time)>1){# No transfer occurred at the last point in time
+                   if(last(d)==1|last(d)==2){## The last status is not dead, indicating that there is censoring data
+                     ci2<-c(ID=i,y=last(Time)-1,m=last(d),sigema=0)
+                     ci3<-c(ID=i,y=last(Time)-1,m=last(d)+2,sigema=0)
+                     #m=1 in the last time correspond the censoring data of m=1/m=3;
+                     #m=2 in the last time correspond the censoring data of m=2/m=4
+                     ci2<-as.data.frame(t(ci2))
+                     ci3<-as.data.frame(t(ci3))
+                     colnames(ci2)<-c("ID","y","m","sigema")
+                     colnames(ci3)<-c("ID","y","m","sigema")
+                     c<-rbind(c,ci2,ci3)
+                   }
+                 }
+               }#If last(time) is greater than 1 and is not in state 3, then the survival time of the individual in state 1/2 is the censoring data and the survival time is last(time)-1
+               if (any(s!= 0)==FALSE) {
+                 ci1<-c(ID=i,y=last(Time)-1,m=last(d),sigema=0)
+                 ci2<-c(ID=i,y=last(Time)-1,m=last(d)+2,sigema=0)
+                 ci1<-as.data.frame(t(ci1))
+                 ci2<-as.data.frame(t(ci2))
+                 colnames(ci1)<-c("ID","y","m","sigema")
+                 colnames(ci2)<-c("ID","y","m","sigema")
+                 c<-as.data.frame(rbind(c,ci1,ci2))
+               }
+               #pfs/pd-d
+               if(last(d)==1|last(d)==2){
+                 ci3<-c(ID=i,y=K-sit,m=5,sigema=0) 
+                 ci3<-as.data.frame(t(ci3))
+                 colnames(ci3)<-c("ID","y","m","sigema")
+                 c<-as.data.frame(rbind(c,ci3))  
+               }
+               if(last(d)==3){ 
+                 if(d[sit]==1|d[sit]==2){
+                   ci3<-c(ID=i,y=min(which(d==3))-sit,m=5,sigema=1)
+                   ci3<-as.data.frame(t(ci3))
+                   colnames(ci3)<-c("ID","y","m","sigema")
+                   c<-as.data.frame(rbind(c,ci3))  
+                 }
+                 if(d[sit]==3){ 
+                   c<-c
+                 }
+               }
+               c<-c[-1,]
+               return(c)
+             }
 stopCluster(cl)
 
 
@@ -103,20 +104,20 @@ surv_c<- matrix(0, nrow=4, ncol=K)
 surv_t<- matrix(0, nrow=4, ncol=K)
 for(m in 1:4){
   data<-C_1[which(C_1$m==m),c(2,4)]
-weibull_fit <- survreg(Surv(y, sigema) ~ 1, data = data, dist = "weibull")
-scale <- exp(weibull_fit$coefficients) 
-shape <- 1/weibull_fit$scale 
-
-#3. Calculate the survival function of the intervention group
-t <-1:K
-surv_prob <- exp(-(t/scale)^shape)
-hr<-HR_4[,(m-1)*11+2]
-scale_t <- scale / (hr)^(1/shape)
-surv_prob_t <-c(surv_prob[1], exp(-(t[-1]/scale_t)^shape))
-plot(surv_prob,type="l")
-lines(surv_prob_t)
-surv_c[m,]<-surv_prob
-surv_t[m,]<-surv_prob_t
+  weibull_fit <- survreg(Surv(y, sigema) ~ 1, data = data, dist = "weibull")
+  scale <- exp(weibull_fit$coefficients) 
+  shape <- 1/weibull_fit$scale 
+  
+  #3. Calculate the survival function of the intervention group
+  t <-1:K
+  surv_prob <- exp(-(t/scale)^shape)
+  hr<-HR_4[,(m-1)*11+2]
+  scale_t <- scale / (hr)^(1/shape)
+  surv_prob_t <-c(surv_prob[1], exp(-(t[-1]/scale_t)^shape))
+  plot(surv_prob,type="l")
+  lines(surv_prob_t)
+  surv_c[m,]<-surv_prob
+  surv_t[m,]<-surv_prob_t
 }
 
 #4. Calculate the transition probability matrix of the intervention group
@@ -127,12 +128,14 @@ for (t in 1:(K-1)) {
   p <- matrix(0, nrow = 3, ncol = 3)  
   col_names <-c("PFS","PD","D")
   row_names <- c("PFS","PD","D")
-  p[1,3]<-1-(surv_c[3,t+1]/surv_c[3,t])
-  p[1,2]<-1-(surv_c[1,t+1]/surv_c[1,t])
+  p[1,3]<-max(1-(surv_c[3,t+1]/surv_c[3,t]), 0)
+  p[1,2]<-max(1-(surv_c[1,t+1]/surv_c[1,t]), 0)
   p[1,1]<-1-p[1,3]-p[1,2]
-  p[2,3]<-1-(surv_c[4,t+1]/surv_c[4,t])
-  p[2,1]<-1-(surv_c[2,t+1]/surv_c[2,t])
+  p[2,3]<-max(1-(surv_c[4,t+1]/surv_c[4,t]), 0)
+  p[2,1]<-max(1-(surv_c[2,t+1]/surv_c[2,t]), 0)
   p[2,2]<-1-p[2,3]-p[2,1]
+  p[1,] <- p[1,] / sum(p[1,])
+  p[2,] <- p[2,] / sum(p[2,])
   p[3,1]<-0
   p[3,2]<-0
   p[3,3]<-1
@@ -159,20 +162,6 @@ for (t in 1:(K-1)) {
 }
 
 
-k<-K-1
-plot(1:k, p_list[1,2,1:k], type="l", col="steelblue2", ylim=c(0,0.1), xlab="Time", ylab="P", main="Probability",bty ="l",lwd=2)
-lines(1:k, p_list[2,1,1:k], type="l", col="purple",lwd=2)
-lines(1:k, p_list[1,3,1:k], type="l", col="palegreen3",lwd=2)
-lines(1:k, p_list[2,3,1:k], type="l", col="gold1",lwd=2)
-legend("topright", legend=c("PFS-PD", "PD-PFS","PFS-D","PD-D"), col=c("steelblue2", "purple", "palegreen3", "gold1"), lty=1, ,lwd=2,cex=0.8, bty = "n")
-
-plot(1:(k), p_list_tr[1,2,1:(k)], type="l", col="steelblue2", ylim=c(0,0.12), xlab="Time", ylab="P", main="Probability",bty ="l",lwd=2)
-lines(1:(k), p_list_tr[2,1,1:(k)], type="l", col="purple",lwd=2)
-lines(1:(k), p_list_tr[1,3,1:(k)], type="l", col="palegreen3",lwd=2)
-lines(1:(k), p_list_tr[2,3,1:(k)], type="l", col="gold1",lwd=2)
-legend("topright", legend=c("PFS-PD", "PD-PFS","PFS-D","PD-D"), col=c("steelblue2", "purple", "palegreen3", "gold1"), lty=1,lwd=2, cex=0.8, bty = "n")
-
-
 library(foreach)
 library(iterators)
 library(parallel)
@@ -185,6 +174,7 @@ for(i in 1:length(sit)){
   first[i]<-dat_flw[i,sit[i]]
 }
 p1<-(table(first)/length(sit))[1]
+# p1_phiv <- 0.688 in the article
 states<- 3  # number of states
 n<-500 # The number of samples n<-5000
 n0<-round(n*p1,0)
@@ -192,27 +182,26 @@ K# the number of loops
 data_tran<-list()
 #1. Repeat the cycle to generate sample data _ treatment group
 n.cores <- detectCores()
-n.cores<-7
 cl <- makeCluster(n.cores-1) 
 registerDoParallel(cl)
 for(kk in 1:K){
-      p_k<- p_list
-if(kk<K) {p_k[,,(kk:(K-1))]<- p_list_tr[,,(kk:(K-1))]}    
-data<- as.data.frame(NA, nrow = n, ncol = K)
-data<- foreach(i = 1:n,
-               .combine = rbind,
-               .errorhandling = "pass") %dopar% {
-current_state <- ifelse(i<=n0,1,2)
-  da<-c(current_state)
-  # Store sample sequences
-  for(t in 1:(K-1)){
-    next_state <- sample(1:states, 1, prob = p_k[current_state,,t])
-  da<- c(da,next_state)
-  current_state<-next_state
-  }
-  return(da)
-               }
- data_tran[[kk]]<-data  
+  p_k<- p_list
+  if(kk<K) {p_k[,,(kk:(K-1))]<- p_list_tr[,,(kk:(K-1))]}    
+  data<- as.data.frame(NA, nrow = n, ncol = K)
+  data<- foreach(i = 1:n,
+                 .combine = rbind,
+                 .errorhandling = "pass") %dopar% {
+                   current_state <- ifelse(i<=n0,1,2)
+                   da<-c(current_state)
+                   # Store sample sequences
+                   for(t in 1:(K-1)){
+                     next_state <- sample(1:states, 1, prob = p_k[current_state,,t])
+                     da<- c(da,next_state)
+                     current_state<-next_state
+                   }
+                   return(da)
+                 }
+  data_tran[[kk]]<-data  
 }
 stopCluster(cl)
 write.csv(data_tran,"~/Desktop/AIDS/AIDS-2024/beta_2nd/data_tran_eco.csv")
