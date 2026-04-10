@@ -1,13 +1,14 @@
+#Part 1 clean the data 
 #######1. clean the data 
 library(readxl)
-flw_use<- read_excel("Desktop/AIDS/数据/AIDS-2024/flw_use.xlsx")
+flw_use<- read_excel("Desktop//AIDS-2024/flw_use.xlsx")
 colnames(flw_use)<-c("id","flw_sta","flw_num","x","cd4","date")
 #head(flw_use)#152930
 
-#1. Rule out loss to follow-up
+#1). Rule out loss to follow-up
 flw<-flw_use[-(which(flw_use$flw_sta=="失访"|flw_use$flw_sta=="查无此人（以后无需随访）")),]#149679
 
-#2. Corresponding month k (starting from 2012)
+#2). Corresponding month k (starting from 2012)
 library("lubridate")
 flw$year<-year(flw$date)
 flw$month<-month(flw$date)
@@ -16,7 +17,7 @@ flw<-flw[which(flw$year>=2012),]#142967
 flw$k<-(flw$year-2012)*12+flw$month
 
 
-#3. cd4 status classification
+#3). cd4 status classification
 flw$status <- rep(NA, nrow(flw))
 flw$status[which(flw$flw_sta=="死亡")] <- 3
 flw$status[which(is.na(flw$status) & flw$cd4>=200)] <- 1
@@ -56,13 +57,13 @@ stopCluster(cl)
 dat<-as.data.frame(dat)
 colnames(dat)<-c("id",1:K) #7271
 
-#3.included in repeated measurements>=Three times
+#included in repeated measurements>=Three times
 times<-apply(dat[,-1],1,function(x){if(length(which(is.na(x)==FALSE))>=3){return(1)}
   return(0)})
 table(times)
 dat_1<-dat[which(times==1),]#6157
 
-#4. Entry age, excluding People aged<10； >65
+#4). Entry age, excluding People aged<10； >65
 card_use<- read_excel("Desktop/AIDS/数据/AIDS-2024/card_use.xlsx")
 colnames(card_use)
 card<-card_use[,c(1,11,74,75)]#9095
@@ -72,11 +73,9 @@ table(card$born_year)
 card<-card[which(card$born_year<2002),]#8973
 card<-card[which(card$born_year>=1947),]#8487
 
-#5. Exclude those who died accidentally
+#5). Exclude those who died accidentally
 table(card$die_cause_2)
 card<-card[-which((card$die_cause=="艾滋病无关死亡")&((card$die_cause_2=="自杀")|(card$die_cause_2=="吸毒过量")|(card$die_cause_2=="其他非疾病外因死亡(损伤等)"))),]#8366
-
-——————————
 dat_2<-merge(dat_1,card[,1],by="id")#5739
 colnames(dat_2)
 cl <- makeCluster(n.cores-1) 
@@ -98,13 +97,9 @@ dat_3<-foreach(i = 1:num,
 stopCluster(cl) 
 dim(dat_3)#5739
 colnames(dat_3)<-c("id",1:K) 
-write.csv(dat_3,"~/Desktop/AIDS/数据/AIDS-2024/dat_flw.csv")
+write.csv(dat_3,"~/Desktop/AIDS-2024/dat_flw.csv")
 
-
-
-
-————————————
-#Variable division of x
+#######2. Variable division of x
 flw$X<-flw$x
 flw$X[which(flw$x<=3)]<-1
 flw$X[which(flw$x>3)]<-0
@@ -158,4 +153,4 @@ X_3<-foreach(i = 1:num,
              }
 stopCluster(cl) 
 X_3<-as.data.frame(X_3)
-write.csv(X_3,"~/Desktop/AIDS/数据/AIDS-2024/dat_x.csv")
+write.csv(X_3,"~/Desktop/AIDS-2024/dat_x.csv")
