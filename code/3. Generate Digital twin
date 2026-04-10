@@ -1,0 +1,140 @@
+#Part 3 Generate Digital twin
+#######5.Generate transition chain data 
+#1). Extract the population that has not received intervention and calculate the transition probability matrix
+#2). Calculate the survival function of each path
+#3). Calculate the survival function of the intervention group（using the changing HR from BCMC）
+#4). Calculate the transition probability matrix of the intervention group
+#5). Generate data
+
+dat_flw<-read.csv("~/Desktop/AIDS/AIDS-2024/dat_flw.csv")
+dat_flw<-dat_flw[,-c(1:2)]
+dat_x<-read.csv("~/Desktop/AIDS/AIDS-2024/dat_x.csv")
+dat_x<-dat_x[,-c(1:2)]
+HR_ALL_4<-read.csv("~/Desktop/AIDS-2024/HR_ALL_4.csv")[,-1]
+HR_4<-HR_ALL_4[,c(3,17,31,45)]
+
+#1). Extract the population that has not received intervention and calculate the transition probability matrix
+x_yf<-apply(dat_x,1,function(x){if (1 %in% x) {return(1)} 
+  return(0)})
+dat_flw_x0<-dat_flw[which(x_yf==0),]
+n_patients <- dim(dat_flw_x0)[1]# The number of samples
+K <- dim(dat_flw)[2]
+q <- 1
+set.seed(123)
+
+x_list <- list()
+x_list[[1]] <- matrix(0, nrow = n_patients, ncol = K)
+names(x_list) <- c("Covariate1")
+
+C1<-data_sur_extract(dat_flw_x0,x_list,q)
+
+#2). Calculate the survival function of each path
+library(survival)
+surv_c<- matrix(0, nrow=4, ncol=K)
+surv_t<- matrix(0, nrow=4, ncol=K)
+for(m in 1:4){
+  data<-C_1[which(C_1$m==m),c(2,4)]
+  weibull_fit <- survreg(Surv(y, sigema) ~ 1, data = data, dist = "weibull")
+  scale <- exp(weibull_fit$coefficients) 
+  shape <- 1/weibull_fit$scale 
+  
+#3). Calculate the survival function of the intervention group
+  t <-1:K
+  surv_prob <- exp(-(t/scale)^shape)
+  hr<-HR_4[,m]
+  scale_t <- scale / (hr)^(1/shape)
+  surv_prob_t <-c(surv_prob[1], exp(-(t[-1]/scale_t)^shape))
+  plot(surv_prob,type="l")
+  lines(surv_prob_t)
+  surv_c[m,]<-surv_prob
+  surv_t[m,]<-surv_prob_t
+}
+
+#4. Calculate the transition probability matrix of the intervention group
+X<-0
+p_list <- c(rep(NA, 3*3*(K-1)))
+dim(p_list)<-c(3,3,K-1)
+for (t in 1:(K-1)) {
+  p <- matrix(0, nrow = 3, ncol = 3)  
+  col_names <-c("PFS","PD","D")
+  row_names <- c("PFS","PD","D")
+  p[1,3]<-max(1-(surv_c[3,t+1]/surv_c[3,t]), 0)
+  p[1,2]<-max(1-(surv_c[1,t+1]/surv_c[1,t]), 0)
+  p[1,1]<-1-p[1,3]-p[1,2]
+  p[2,3]<-max(1-(surv_c[4,t+1]/surv_c[4,t]), 0)
+  p[2,1]<-max(1-(surv_c[2,t+1]/surv_c[2,t]), 0)
+  p[2,2]<-1-p[2,3]-p[2,1]
+  p[1,] <- p[1,] / sum(p[1,])
+  p[2,] <- p[2,] / sum(p[2,])
+  p[3,1]<-0
+  p[3,2]<-0
+  p[3,3]<-1
+  p_list[,,t] <- p  
+}
+
+X<-1
+p_list_tr <- c(rep(0, 3*3*(K-1)))
+dim(p_list_tr)<-c(3,3,(K-1))
+for (t in 1:(K-1)) {
+  p <- matrix(0, nrow = 3, ncol = 3)  
+  col_names <-c("PFS","PD","D")
+  row_names <- c("PFS","PD","D")
+  p[1,3]<-max(1-(surv_t[3,t+1]/surv_t[3,t]),0)
+  p[1,2]<-max(1-(surv_t[1,t+1]/surv_t[1,t]),0)
+  p[1,1]<-1-p[1,3]-p[1,2]
+  p[2,3]<-max(1-(surv_t[4,t+1]/surv_t[4,t]),0)
+  p[2,1]<-max(1-(surv_t[2,t+1]/surv_t[2,t]),0)
+  p[2,2]<-1-p[2,3]-p[2,1]
+  p[3,1]<-0
+  p[3,2]<-0
+  p[3,3]<-1
+  p_list_tr[,,t] <- p 
+}
+
+#5). Generate data
+data_generate<-function(p_list,p_list_tr,K,n,n0){
+  library(foreach)
+  library(iterators)
+  library(parallel)
+  library(doParallel)
+data_tran0<-list()
+#Repeat the cycle to generate sample data _ treatment group
+n.cores <- detectCores()
+cl <- makeCluster(n.cores-1) 
+registerDoParallel(cl)
+for(kk in 1:K){
+  p_k<- p_list
+  if(kk<K) {p_k[,,(kk:(K-1))]<- p_list_tr[,,(kk:(K-1))]}    
+  data<- as.data.frame(NA, nrow = n, ncol = K)
+  data<- foreach(i = 1:n,
+                 .combine = rbind,
+                 .errorhandling = "pass") %dopar% {
+                   current_state <- ifelse(i<=n0,1,2)
+                   da<-c(current_state)
+                   # Store sample sequences
+                   for(t in 1:(K-1)){
+                     next_state <- sample(1:states, 1, prob = p_k[current_state,,t])
+                     da<- c(da,next_state)
+                     current_state<-next_state
+                   }
+                   return(da)
+                 }
+  data_tran0[[kk]]<-data  
+}
+stopCluster(cl)
+return(data_tran0)
+}
+
+sit<-apply(dat_flw,1,function(x){min(which(is.na(x)==FALSE))})
+first<-c()
+for(i in 1:length(sit)){
+  first[i]<-dat_flw[i,sit[i]]
+}
+p1<-(table(first)/length(sit))[1]
+# p1_phiv <- 0.688 in the article
+states<- 3  # number of states
+n<-500 # The number of samples n<-5000
+n0<-round(n*p1,0)
+K <- dim(dat_flw)[2]# the number of loops
+data_tran<-data_generate(p_list,p_list_tr,K,n,n0)
+write.csv(data_tran,"~/Desktop/AIDS-2024/data_tran_eco.csv")
