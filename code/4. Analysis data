@@ -1,0 +1,125 @@
+#Part 4 Analysis data
+####### 6.Extract the median survival time at a fixed time
+library(foreach)
+library(iterators)
+library(parallel)
+library(doParallel)
+library(survival)
+library(data.table)
+K #K<-156 in article
+n<-500
+C<-list()
+sur<-list()
+sur_med<-list()
+year<-c(156,6,12,24,60,96,120)
+  for(m in 1:3){#PFS-PD,PD-D,PFS-D(including PFS-PD-D,PFS-D)
+    sur_95<-c(0)
+    sur_med_95<-c(0)
+    for(or in 1:7){#(K+1)
+      surv_p<-matrix(NA, nrow=100, ncol=K)
+      surv_p_med <- rep(NA, 100)
+      kk<-year[or]
+      for(cycle in 1:100){
+#1). Generate data chain
+        data<-as.data.frame(data_tran[[kk]])
+#2).Extract survival data
+        q <- 1
+        set.seed(123)
+        x_list <- list()
+        x_list[[1]] <- matrix(0, nrow = n, ncol = K)
+        x_list[[1]][kk:K,] <- 1 
+        names(x_list) <- c("Covariate1")
+        C1<-data_sur_extract(data,x_list,q)
+        C_1<-C1[which((C1$m==1)|(C1$m==2)|(C1$m==5)),]
+        C_1$m[which(C2$m==5)]<-3
+# 3). Fit the weibull estimation
+        data_sur<-C_1[which(C_1$m==m),c(2,4)]
+        weibull_fit <- survreg(Surv(y, sigema) ~ 1, data = data_sur, dist = "weibull")
+        
+        scale <- exp(weibull_fit$coefficients) 
+        shape <- 1/weibull_fit$scale            
+        t <-1:K
+        surv_prob <- exp(-(t/scale)^shape)
+        #plot(surv_prob,type="l")
+        surv_p[cycle,]<-surv_prob
+        
+#4). Extract the median survival time
+        data_sur<-C_1[which(C_1$m==m),c(2,4)]
+        fit <- survfit(Surv(y, sigema) ~ 1, data = data_sur)
+        surv_p_med[cycle]<- summary(fit)$table["median"]
+      }
+      #p
+      mean<-apply(surv_p,2,function(x){mean(x)})
+      lwr<-apply(surv_p,2,function(x){binom.test(sum(round(x,2)*100), 100*100)$conf.int[1]})
+      upr<-apply(surv_p,2,function(x){binom.test(sum(round(x,2)*100), 100*100)$conf.int[2]})
+      sur_95<-cbind(sur_95,mean,lwr,upr)
+      mean_med<-t.test(surv_p_med)$estimate
+      lwr_med<-t.test(surv_p_med)$conf.int[1]
+      upr_med<-t.test(surv_p_med)$conf.int[2]
+      sur_med_95<-rbind(sur_med_95,c(mean_med,lwr_med,upr_med))
+      
+    }
+    sur[[m]]<-sur_95[,-1]
+    sur_med[[m]]<-sur_med_95[-1,]
+  }
+stopCluster(cl)
+write.csv(sur,"~/Desktop/AIDS-2024/figure2_sur_2.csv")
+write.csv(sur_med,"~/Desktop/AIDS-2024/figure2_sur_med.csv")
+
+####### 7.Extract all median survival times
+library(foreach)
+library(iterators)
+library(parallel)
+library(doParallel)
+library(survival)
+library(data.table)
+sit<-apply(dat_flw,1,function(x){min(which(is.na(x)==FALSE))})
+first<-c()
+for(i in 1:length(sit)){
+  first[i]<-dat_flw[i,sit[i]]
+}
+p1<-(table(first)/length(sit))[1]
+
+#1. Generate data chain
+K #K<-156 in article
+n<-500
+C<-list()
+sur<-list()
+med_all<-list()
+states<- 3  # number of states
+n<-500 # The number of samples n<-5000
+n0<-round(n*p1,0)
+K# the number of loops
+  for(m in 1:3){
+    med_all_95<-c(0)
+    for(kk in 1:K){#(K+1)
+      surv_p_med<-c(NA)
+      for(cycle in 1:100){
+        #1). Generate data chain
+        data<-as.data.frame(data_tran[[kk]])
+        #2).Extract survival data
+        q <- 1
+        set.seed(123)
+        x_list <- list()
+        x_list[[1]] <- matrix(0, nrow = n, ncol = K)
+        x_list[[1]][kk:K,] <- 1 
+        names(x_list) <- c("Covariate1")
+        C1<-data_sur_extract(data,x_list,q)
+        C_1<-C1[which((C1$m==1)|(C1$m==2)|(C1$m==5)),]
+        C_1$m[which(C2$m==5)]<-3
+        # 3). Fit the Kaplan-Meier estimation
+        data_sur<-C_1[which(C_1$m==m),c(2,4)]
+        fit <- survfit(Surv(y, sigema) ~ 1, data = data_sur)
+        surv_p_med[cycle]<- summary(fit)$table["median"]
+      }
+      mean_med<-t.test(surv_p_med)$estimate
+      lwr_med<-t.test(surv_p_med)$conf.int[1]
+      upr_med<-t.test(surv_p_med)$conf.int[2]
+      med_all_95<-rbind(med_all_95,c(mean_med,lwr_med,upr_med))
+    }
+    med_all[[m]]<-med_all_95[-1,]
+  }
+  write.csv(med_all,"~/Desktop/AIDS-2024/figure3_med_all.csv")
+
+stopCluster(cl)
+
